@@ -40,5 +40,8 @@
                 "button": "tab"
             }
         }
+    },
+    "experimental": {
+        "client_transmit": true
     }
 }

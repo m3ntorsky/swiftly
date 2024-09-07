@@ -50,6 +50,7 @@ SH_DECL_HOOK3_void(ICvar, DispatchConCommand, SH_NOATTRIB, 0, ConCommandHandle, 
 SH_DECL_HOOK0_void(IServerGameDLL, GameServerSteamAPIActivated, SH_NOATTRIB, 0);
 SH_DECL_HOOK0_void(IServerGameDLL, GameServerSteamAPIDeactivated, SH_NOATTRIB, 0);
 SH_DECL_HOOK2_void(IServerGameClients, ClientCommand, SH_NOATTRIB, 0, CPlayerSlot, const CCommand&);
+SH_DECL_HOOK7_void(ISource2GameEntities, CheckTransmit, SH_NOATTRIB, 0, CCheckTransmitInfo**, int, CBitVec<16384>&, const Entity2Networkable_t**, const uint16*, int, bool);
 
 #ifdef _WIN32
 FILE _ioccc[] = { *stdin, *stdout, *stderr };
@@ -160,6 +161,7 @@ bool Swiftly::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool 
     GET_V_IFACE_CURRENT(GetEngineFactory, g_pGameEventSystem, IGameEventSystem, GAMEEVENTSYSTEM_INTERFACE_VERSION);
     GET_V_IFACE_CURRENT(GetEngineFactory, g_pSchemaSystem2, CSchemaSystem, SCHEMASYSTEM_INTERFACE_VERSION);
     GET_V_IFACE_CURRENT(GetEngineFactory, g_pNetworkSystem, INetworkSystem, NETWORKSYSTEM_INTERFACE_VERSION);
+    GET_V_IFACE_ANY(GetServerFactory, g_pSource2GameEntities, ISource2GameEntities, SOURCE2GAMEENTITIES_INTERFACE_VERSION);
 
     SH_ADD_HOOK_MEMFUNC(IServerGameDLL, GameFrame, server, this, &Swiftly::Hook_GameFrame, true);
     SH_ADD_HOOK_MEMFUNC(IServerGameClients, ClientDisconnect, gameclients, this, &Swiftly::Hook_ClientDisconnect, true);
@@ -170,7 +172,7 @@ bool Swiftly::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool 
     SH_ADD_HOOK_MEMFUNC(ICvar, DispatchConCommand, icvar, this, &Swiftly::Hook_DispatchConCommand, false);
     SH_ADD_HOOK_MEMFUNC(IServerGameDLL, GameServerSteamAPIActivated, server, this, &Swiftly::Hook_GameServerSteamAPIActivated, false);
     SH_ADD_HOOK_MEMFUNC(IServerGameDLL, GameServerSteamAPIDeactivated, server, this, &Swiftly::Hook_GameServerSteamAPIDeactivated, false);
-
+    SH_ADD_HOOK_MEMFUNC(ISource2GameEntities, CheckTransmit, g_pSource2GameEntities, this, &Swiftly::Hook_CheckTransmit, true);
     g_pCVar = icvar;
 
     ConVar_Register(FCVAR_RELEASE | FCVAR_SERVER_CAN_EXECUTE | FCVAR_CLIENT_CAN_EXECUTE | FCVAR_GAMEDLL);
@@ -312,6 +314,7 @@ bool Swiftly::Unload(char* error, size_t maxlen)
     SH_REMOVE_HOOK_MEMFUNC(ICvar, DispatchConCommand, icvar, this, &Swiftly::Hook_DispatchConCommand, false);
     SH_REMOVE_HOOK_MEMFUNC(IServerGameDLL, GameServerSteamAPIActivated, server, this, &Swiftly::Hook_GameServerSteamAPIActivated, false);
     SH_REMOVE_HOOK_MEMFUNC(IServerGameDLL, GameServerSteamAPIDeactivated, server, this, &Swiftly::Hook_GameServerSteamAPIDeactivated, false);
+    SH_REMOVE_HOOK_MEMFUNC(ISource2GameEntities, CheckTransmit, g_pSource2GameEntities, this, &Swiftly::Hook_CheckTransmit, true);
 
     g_pGameEntitySystem->RemoveListenerEntity(&g_entityListener);
 
@@ -567,6 +570,42 @@ inline std::string& lltrim(std::string& s, const char* t = wws)
 inline std::string& strim(std::string& s, const char* t = wws)
 {
     return lltrim(rrtrim(s, t), t);
+}
+
+void Swiftly::Hook_CheckTransmit(CCheckTransmitInfo** ppInfoList, int infoCount, CBitVec<16384>& unionTransmitEdicts, const Entity2Networkable_t** pNetworkables, const uint16* pEntityIndicies, int nEntities, bool bEnablePVSBits)
+{
+    if (!g_pGameEntitySystem)
+        return;
+    
+    if (!g_Config->FetchValue<bool>("core.experimental.client_transmit"))
+        return;
+
+    static int offset = g_Offsets->GetOffset("CheckTransmitPlayerSlot");
+
+    for (int i = 0; i < infoCount; i++)
+    {
+        auto& pInfo = ppInfoList[i];
+
+        int iPlayerSlot = (int)*((uint8*)pInfo + offset);
+
+        for (int iOtherPlayerSlot = 0; iOtherPlayerSlot < engine->GetServerGlobals()->maxClients; iOtherPlayerSlot++)
+        {
+            if (iOtherPlayerSlot == iPlayerSlot)
+                continue;
+
+            Player* pOtherPlayer = g_playerManager->GetPlayer(iOtherPlayerSlot);
+
+            if(!pOtherPlayer)
+                return;
+
+            PluginEvent* event = new PluginEvent("core", nullptr, nullptr);
+
+            if (g_pluginManager->ExecuteEvent("core", "OnClientTransmit", encoders::msgpack::SerializeToString({ iPlayerSlot, iOtherPlayerSlot }), event) == EventResult::Stop)
+                pInfo->m_pTransmitEntity->Clear(g_playerManager->GetPlayer(iOtherPlayerSlot)->GetPawn()->EntityIndex());
+            delete event;
+        }
+
+    }
 }
 
 void Swiftly::Hook_OnClientCommand(CPlayerSlot slot, const CCommand& cmd)

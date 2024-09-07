@@ -38,5 +38,9 @@
     "CServerSideClient_OnConVarQuery": {
         "windows": 39,
         "linux": 41
+    },
+    "CheckTransmitPlayerSlot": {
+        "windows": 584,
+        "linux": 584
     }
 }

@@ -470,6 +470,8 @@ bool Configuration::LoadConfiguration()
     RegisterConfiguration(wasEdited, coreConfigFile, "core", "core", "menu.buttons.exit.option", false);
     RegisterConfiguration(wasEdited, coreConfigFile, "core", "core", "menu.buttons.exit.button", "tab");
 
+    RegisterConfiguration(wasEdited, coreConfigFile, "core", "core", "experimental.client_transmit", true);
+
     if (wasEdited)
     {
         WritePluginFile("addons/swiftly/configs/core.json", coreConfigFile);
