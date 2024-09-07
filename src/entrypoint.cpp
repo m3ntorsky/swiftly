@@ -590,7 +590,9 @@ void Swiftly::Hook_CheckTransmit(CCheckTransmitInfo** ppInfoList, int infoCount,
 
         for (int iOtherPlayerSlot = 0; iOtherPlayerSlot < engine->GetServerGlobals()->maxClients; iOtherPlayerSlot++)
         {
-            if (iOtherPlayerSlot == iPlayerSlot)
+            CCSPlayerController* pOtherController = CCSPlayerController::FromSlot(iOtherPlayerSlot);
+
+            if (!pOtherController || pOtherController->m_bIsHLTV || iOtherPlayerSlot == iPlayerSlot)
                 continue;
 
             Player* pOtherPlayer = g_playerManager->GetPlayer(iOtherPlayerSlot);
@@ -601,7 +603,7 @@ void Swiftly::Hook_CheckTransmit(CCheckTransmitInfo** ppInfoList, int infoCount,
             PluginEvent* event = new PluginEvent("core", nullptr, nullptr);
 
             if (g_pluginManager->ExecuteEvent("core", "OnClientTransmit", encoders::msgpack::SerializeToString({ iPlayerSlot, iOtherPlayerSlot }), event) == EventResult::Stop)
-                pInfo->m_pTransmitEntity->Clear(g_playerManager->GetPlayer(iOtherPlayerSlot)->GetPawn()->EntityIndex());
+                pInfo->m_pTransmitEntity->Clear(pOtherPlayer->GetPawn()->EntityIndex());
             delete event;
         }
 
