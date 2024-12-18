@@ -13,6 +13,7 @@
 #define META_IS_SOURCE2 1
 #define MAX_PLAYERS 64
 
+
 #include <public/playerslot.h>
 #include <public/inetchannelinfo.h>
 
