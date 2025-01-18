@@ -168,6 +168,7 @@ void ChatProcessor::PostEvent(CSplitScreenSlot nSlot, bool bLocalOnly, int nClie
         if (it != this->placeholders.end()) {
             um.SetString("messagename", formatPlayerMessage(player, controller, it->second.c_str(), um.GetString("param2")).c_str());
         }
+        delete um;
     }
     else if (pEvent->GetNetMessageInfo()->m_MessageId == 322) {
         PluginUserMessage um(pEvent, (CNetMessage*)pData, (uint64*)clients);
@@ -180,6 +181,7 @@ void ChatProcessor::PostEvent(CSplitScreenSlot nSlot, bool bLocalOnly, int nClie
         if (it != this->placeholders.end()) {
             um.SetString("msg_name", formatPlayerMessage(player, controller, it->second.c_str(), um.GetRepeatedString("params", 2), true).c_str());
         }
+        delete um;
     }
 #endif
 }
