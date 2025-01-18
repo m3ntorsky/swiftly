@@ -154,7 +154,6 @@ std::string formatPlayerMessage(Player* player, CCSPlayerController* controller,
 }
 void ChatProcessor::PostEvent(CSplitScreenSlot nSlot, bool bLocalOnly, int nClientCount, const uint64* clients, INetworkMessageInternal* pEvent, const CNetMessage* pData, unsigned long nSize, NetChannelBufType_t bufType)
 {
-#ifndef _WIN32
     if (pEvent->GetNetMessageInfo()->m_MessageId == 118) {
         PluginUserMessage um(pEvent, (CNetMessage*)pData, (uint64*)clients);
         Player* player = g_playerManager->GetPlayer(um.GetInt32("entityindex") - 1);
@@ -168,7 +167,9 @@ void ChatProcessor::PostEvent(CSplitScreenSlot nSlot, bool bLocalOnly, int nClie
         if (it != this->placeholders.end()) {
             um.SetString("messagename", formatPlayerMessage(player, controller, it->second.c_str(), um.GetString("param2")).c_str());
         }
-        delete um;
+        #ifdef _WIN32
+            delete um;
+        #endif
     }
     else if (pEvent->GetNetMessageInfo()->m_MessageId == 322) {
         PluginUserMessage um(pEvent, (CNetMessage*)pData, (uint64*)clients);
@@ -181,9 +182,12 @@ void ChatProcessor::PostEvent(CSplitScreenSlot nSlot, bool bLocalOnly, int nClie
         if (it != this->placeholders.end()) {
             um.SetString("msg_name", formatPlayerMessage(player, controller, it->second.c_str(), um.GetRepeatedString("params", 2), true).c_str());
         }
-        delete um;
+        
+        #ifdef _WIN32
+            delete um;
+        #endif
     }
-#endif
+
 }
 
 bool OnClientCommand(int playerid, std::string command);
